@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Form {
+  id           String   @id @default(cuid())
+  title        String
+  description  String   @default("")
+  status       String   @default("draft") // "draft" | "published"
+  accentColor  String   @default("#8B5CF6") // presentational only; not in agent schema
+  agentContext String   @default("") // form-level guidance for agents (tone, approach, style)
+  // Resource/registry metadata — makes each form an indexable, searchable resource record.
+  category     String   @default("") // e.g. "Academic Support", "Mental Health", "Financial Aid"
+  tags         String   @default("[]") // JSON array of topic tags for search/filtering
+  resourceUrl  String   @default("") // canonical link to the resource/site this form represents
+  ogTitle      String   @default("") // Open Graph metadata fetched from resourceUrl
+  ogDescription String  @default("")
+  ogImage      String   @default("")
+  ogSiteName   String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  fields       Field[]
+  submissions  Submission[]
+}
+
+model Field {
+  id          String @id @default(cuid())
+  formId      String
+  form        Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  order       Int
+  key         String // stable slug used in schema/answers, e.g. "full_name"
+  type        String // short_text | long_text | email | number | date | select | multi_select | boolean
+  label       String
+  guidance    String @default("")
+  required    Boolean @default(false)
+  options     String @default("[]") // JSON array, for select types
+  constraints String @default("{}") // JSON: min, max, min_length, max_length
+
+  @@index([formId])
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  formId        String
+  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers       String // JSON object keyed by field key
+  source        String   @default("human") // "human" | "agent"
+  agentName     String?
+  agentOnBehalf String?
+  createdAt     DateTime @default(now())
+
+  @@index([formId])
+}
