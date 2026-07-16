@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/StatusBadge";
 import { NewFormButton } from "@/components/NewFormButton";
 
+// Render per-request rather than prerendering at build time: this page reads the database, which
+// on a fresh deploy doesn't exist until `prisma migrate deploy` runs at server start.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const forms = await prisma.form.findMany({
     orderBy: { updatedAt: "desc" },
