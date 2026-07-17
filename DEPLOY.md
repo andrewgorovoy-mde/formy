@@ -20,12 +20,16 @@ are the parts that need your Railway account.
      Railway's `RAILWAY_VOLUME_MOUNT_PATH` and stores the database as `prod.db` inside it — no
      env var required.
 
-3. **Environment variables** (service → **Variables**) — all optional
-   - `DATABASE_URL` — only set this to *override* the auto-detected volume path (e.g.
+3. **Environment variables** (service → **Variables**)
+   - `SESSION_SECRET` — **set this before real users sign up.** It signs the login session
+     cookie; without it the app falls back to a hardcoded dev value, which would let anyone forge
+     a session. Generate one with `openssl rand -hex 32` and paste it in. Existing sessions
+     invalidate if you ever rotate it (users just log in again — no data loss).
+   - `DATABASE_URL` — optional, only to *override* the auto-detected volume path (e.g.
      `file:/data/prod.db`). Leave it unset and the app derives it from the volume mount.
-   - `APP_URL` = your Railway public URL — only if you want absolute URLs in the agentic
-     schema / registry hard-pinned; otherwise the app derives them from the request, which is
-     correct on Railway.
+   - `APP_URL` — optional, your Railway public URL. Only needed if you want absolute URLs in the
+     agentic schema / registry hard-pinned; otherwise the app derives them from the request,
+     which is correct on Railway.
 
 4. **Deploy.** Railway will:
    - build: `npm run build` → `prisma generate && next build`
