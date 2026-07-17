@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { replaceFormFields, toFormWithFields, type FieldInput } from "@/lib/forms";
+import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
+
   const form = await prisma.form.findUnique({
     where: { id },
     include: { fields: { orderBy: { order: "asc" } } },
@@ -16,8 +20,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const existing = await prisma.form.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
 
   const body = await request.json().catch(() => ({}));
 
@@ -52,10 +56,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json(toFormWithFields(updated!));
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const existing = await prisma.form.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
   await prisma.form.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

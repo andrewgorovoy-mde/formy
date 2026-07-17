@@ -10,8 +10,18 @@ datasource db {
   provider = "sqlite"
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  forms        Form[]
+}
+
 model Form {
   id           String   @id @default(cuid())
+  userId       String? // owner; null = unowned (e.g. seeded demo resources). Shown in Discover, not in anyone's "My forms".
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   title        String
   description  String   @default("")
   status       String   @default("draft") // "draft" | "published"
@@ -29,6 +39,8 @@ model Form {
   updatedAt    DateTime @updatedAt
   fields       Field[]
   submissions  Submission[]
+
+  @@index([userId])
 }
 
 model Field {

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { StatusBadge } from "@/components/StatusBadge";
 import { NewFormButton } from "@/components/NewFormButton";
 import { TopBar } from "@/components/TopBar";
@@ -10,7 +12,11 @@ import { FormCardMenu } from "@/components/dashboard/FormCardMenu";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const forms = await prisma.form.findMany({
+    where: { userId: user.id },
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { submissions: true, fields: true } } },
   });
@@ -18,6 +24,7 @@ export default async function DashboardPage() {
   return (
     <>
       <TopBar
+        userEmail={user.email}
         right={
           <div className="flex items-center gap-2">
             <Link

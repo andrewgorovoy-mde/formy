@@ -1,19 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashPassword, signSession, SESSION_COOKIE } from "@/lib/auth";
 import { GET as listForms, POST as createForm } from "@/app/api/forms/route";
-import { GET as getForm, PATCH as patchForm } from "@/app/api/forms/[id]/route";
+import { GET as getForm, PATCH as patchForm, DELETE as deleteForm } from "@/app/api/forms/[id]/route";
 import { GET as getSchema } from "@/app/api/forms/[id]/schema/route";
 import {
   GET as listSubmissions,
   POST as createSubmission,
 } from "@/app/api/forms/[id]/submissions/route";
 
-function jsonRequest(url: string, method: string, body?: unknown) {
+let authCookie: string;
+let otherAuthCookie: string;
+
+function jsonRequest(url: string, method: string, body?: unknown, cookie = authCookie) {
   return new NextRequest(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookie ? { Cookie: `${SESSION_COOKIE}=${cookie}` } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+function authedGet(url: string, cookie = authCookie) {
+  return new NextRequest(url, {
+    headers: cookie ? { Cookie: `${SESSION_COOKIE}=${cookie}` } : {},
   });
 }
 
@@ -26,25 +39,46 @@ describe("forms + submissions API", () => {
     await prisma.submission.deleteMany();
     await prisma.field.deleteMany();
     await prisma.form.deleteMany();
+    await prisma.user.deleteMany();
+
+    const user = await prisma.user.create({
+      data: { email: "owner@example.com", passwordHash: hashPassword("password123") },
+    });
+    authCookie = signSession(user.id);
+
+    const otherUser = await prisma.user.create({
+      data: { email: "other@example.com", passwordHash: hashPassword("password123") },
+    });
+    otherAuthCookie = signSession(otherUser.id);
   });
 
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
-  it("creates a draft form via POST /api/forms", async () => {
+  it("requires auth to create a form", async () => {
+    const res = await createForm(jsonRequest("http://localhost/api/forms", "POST", { title: "Nope" }, ""));
+    expect(res.status).toBe(401);
+  });
+
+  it("creates a draft form owned by the caller via POST /api/forms", async () => {
     const res = await createForm(jsonRequest("http://localhost/api/forms", "POST", { title: "Scholarship" }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.status).toBe("draft");
     expect(body.title).toBe("Scholarship");
+    expect(body.userId).toBeTruthy();
   });
 
-  it("lists forms via GET /api/forms", async () => {
-    const res = await listForms();
+  it("lists only the caller's own forms via GET /api/forms", async () => {
+    const res = await listForms(authedGet("http://localhost/api/forms"));
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
     expect(body.length).toBeGreaterThan(0);
+
+    const otherRes = await listForms(authedGet("http://localhost/api/forms", otherAuthCookie));
+    const otherBody = await otherRes.json();
+    expect(otherBody).toHaveLength(0);
   });
 
   describe("full lifecycle: create -> add fields -> publish -> schema -> submit", () => {
@@ -55,6 +89,16 @@ describe("forms + submissions API", () => {
       const body = await res.json();
       formId = body.id;
       expect(formId).toBeTruthy();
+    });
+
+    it("a different signed-in user cannot read or edit the form", async () => {
+      const getRes = await getForm(authedGet(`http://localhost/api/forms/${formId}`, otherAuthCookie), withId(formId));
+      expect(getRes.status).toBe(403);
+      const patchRes = await patchForm(
+        jsonRequest(`http://localhost/api/forms/${formId}`, "PATCH", { title: "Hijacked" }, otherAuthCookie),
+        withId(formId)
+      );
+      expect(patchRes.status).toBe(403);
     });
 
     it("adds fields via PATCH, auto-generating stable keys", async () => {
@@ -88,7 +132,7 @@ describe("forms + submissions API", () => {
       expect(body.fields[1].key).toBe("contact_email");
     });
 
-    it("is not visible in the schema endpoint while a draft", async () => {
+    it("is not visible in the schema endpoint while a draft (public route, no auth needed)", async () => {
       const res = await getSchema(
         new NextRequest(`http://localhost/api/forms/${formId}/schema`),
         withId(formId)
@@ -96,9 +140,9 @@ describe("forms + submissions API", () => {
       expect(res.status).toBe(404);
     });
 
-    it("returns 404 from GET /f/[id]-equivalent submissions endpoint while a draft", async () => {
+    it("returns 404 from the public submissions endpoint while a draft", async () => {
       const res = await createSubmission(
-        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", { answers: {} }),
+        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", { answers: {} }, ""),
         withId(formId)
       );
       expect(res.status).toBe(404);
@@ -113,7 +157,7 @@ describe("forms + submissions API", () => {
       expect(body.status).toBe("published");
     });
 
-    it("exposes the agentic schema once published, with CORS headers", async () => {
+    it("exposes the agentic schema once published, with CORS headers (public, no auth)", async () => {
       const res = await getSchema(
         new NextRequest(`http://localhost/api/forms/${formId}/schema`),
         withId(formId)
@@ -126,17 +170,22 @@ describe("forms + submissions API", () => {
       expect(body.submit.url).toBe(`http://localhost:3000/api/forms/${formId}/submissions`);
     });
 
-    it("rejects an invalid submission with 422 and per-field errors", async () => {
+    it("rejects an invalid submission with 422 and per-field errors (public, no auth)", async () => {
       const res = await createSubmission(
-        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", {
-          answers: {
-            full_legal_name: "Drew Gorovoy",
-            contact_email: "not-an-email",
-            current_gpa: 3.8,
-            expected_graduation_year: "2027",
-            why_do_you_deserve_this_scholarship: "too short",
+        jsonRequest(
+          `http://localhost/api/forms/${formId}/submissions`,
+          "POST",
+          {
+            answers: {
+              full_legal_name: "Drew Gorovoy",
+              contact_email: "not-an-email",
+              current_gpa: 3.8,
+              expected_graduation_year: "2027",
+              why_do_you_deserve_this_scholarship: "too short",
+            },
           },
-        }),
+          ""
+        ),
         withId(formId)
       );
       expect(res.status).toBe(422);
@@ -146,17 +195,22 @@ describe("forms + submissions API", () => {
       expect(body.fields.why_do_you_deserve_this_scholarship).toMatch(/min_length/);
     });
 
-    it("accepts a valid human submission (no agent block) and records source=human", async () => {
+    it("accepts a valid human submission (no agent block, no auth) and records source=human", async () => {
       const res = await createSubmission(
-        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", {
-          answers: {
-            full_legal_name: "Drew Gorovoy",
-            contact_email: "agorovoy24@gmail.com",
-            current_gpa: 3.8,
-            expected_graduation_year: "2027",
-            why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
+        jsonRequest(
+          `http://localhost/api/forms/${formId}/submissions`,
+          "POST",
+          {
+            answers: {
+              full_legal_name: "Drew Gorovoy",
+              contact_email: "agorovoy24@gmail.com",
+              current_gpa: 3.8,
+              expected_graduation_year: "2027",
+              why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
+            },
           },
-        }),
+          ""
+        ),
         withId(formId)
       );
       expect(res.status).toBe(201);
@@ -165,25 +219,39 @@ describe("forms + submissions API", () => {
       expect(body.form_id).toBe(formId);
     });
 
-    it("accepts a valid agent submission and records source=agent", async () => {
+    it("accepts a valid agent submission (no auth) and records source=agent", async () => {
       const res = await createSubmission(
-        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", {
-          answers: {
-            full_legal_name: "Drew Gorovoy",
-            contact_email: "agorovoy24@gmail.com",
-            current_gpa: 3.8,
-            expected_graduation_year: "2027",
-            why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
+        jsonRequest(
+          `http://localhost/api/forms/${formId}/submissions`,
+          "POST",
+          {
+            answers: {
+              full_legal_name: "Drew Gorovoy",
+              contact_email: "agorovoy24@gmail.com",
+              current_gpa: 3.8,
+              expected_graduation_year: "2027",
+              why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
+            },
+            agent: { name: "scholarship-scout/0.1", on_behalf_of: "agorovoy24@gmail.com" },
           },
-          agent: { name: "scholarship-scout/0.1", on_behalf_of: "agorovoy24@gmail.com" },
-        }),
+          ""
+        ),
         withId(formId)
       );
       expect(res.status).toBe(201);
     });
 
-    it("lists submissions with correct source badges", async () => {
-      const res = await listSubmissions(new NextRequest(`http://localhost/api/forms/${formId}/submissions`), withId(formId));
+    it("requires auth to list submissions, and only the owner may see them", async () => {
+      const anon = await listSubmissions(new NextRequest(`http://localhost/api/forms/${formId}/submissions`), withId(formId));
+      expect(anon.status).toBe(401);
+
+      const stranger = await listSubmissions(
+        authedGet(`http://localhost/api/forms/${formId}/submissions`, otherAuthCookie),
+        withId(formId)
+      );
+      expect(stranger.status).toBe(403);
+
+      const res = await listSubmissions(authedGet(`http://localhost/api/forms/${formId}/submissions`), withId(formId));
       const body = await res.json();
       expect(body).toHaveLength(2);
       const sources = body.map((s: { source: string }) => s.source).sort();
@@ -192,21 +260,34 @@ describe("forms + submissions API", () => {
       expect(agentSub.agentName).toBe("scholarship-scout/0.1");
     });
 
-    it("rejects unknown field ids", async () => {
+    it("rejects unknown field ids (public route, no auth)", async () => {
       const res = await createSubmission(
-        jsonRequest(`http://localhost/api/forms/${formId}/submissions`, "POST", {
-          answers: { not_a_real_field: "x" },
-        }),
+        jsonRequest(
+          `http://localhost/api/forms/${formId}/submissions`,
+          "POST",
+          { answers: { not_a_real_field: "x" } },
+          ""
+        ),
         withId(formId)
       );
       expect(res.status).toBe(422);
       const body = await res.json();
       expect(body.fields.not_a_real_field).toBe("unknown field");
     });
+
+    it("a different signed-in user cannot delete the form", async () => {
+      const res = await deleteForm(authedGet(`http://localhost/api/forms/${formId}`, otherAuthCookie), withId(formId));
+      expect(res.status).toBe(403);
+    });
   });
 
-  it("404s GET /api/forms/[id] for a missing form", async () => {
-    const res = await getForm(new NextRequest("http://localhost/api/forms/nope"), withId("nope"));
+  it("404s GET /api/forms/[id] for a missing form (as an authed user)", async () => {
+    const res = await getForm(authedGet("http://localhost/api/forms/nope"), withId("nope"));
     expect(res.status).toBe(404);
+  });
+
+  it("401s GET /api/forms/[id] for an unauthenticated caller", async () => {
+    const res = await getForm(authedGet("http://localhost/api/forms/nope", ""), withId("nope"));
+    expect(res.status).toBe(401);
   });
 });

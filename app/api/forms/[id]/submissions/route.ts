@@ -3,13 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { toFormWithFields } from "@/lib/forms";
 import { validateAnswers } from "@/lib/validation";
 import { CORS_HEADERS } from "@/lib/appUrl";
+import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+// Listing responses is private — owner only. (Submitting, below, is public for humans + agents.)
+export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const form = await prisma.form.findUnique({ where: { id } });
-  if (!form) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
 
   const submissions = await prisma.submission.findMany({
     where: { formId: id },

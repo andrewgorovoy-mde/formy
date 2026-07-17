@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
-// Duplicates a form (metadata + all fields) as a new draft. Submissions are not copied. Field
-// keys are preserved verbatim — they're local to the new form, so there's no collision risk.
-export async function POST(_request: NextRequest, { params }: Params) {
+// Duplicates a form (metadata + all fields) as a new draft owned by the caller. Submissions are
+// not copied. Field keys are preserved verbatim — they're local to the new form, so no collision.
+export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
+
   const source = await prisma.form.findUnique({
     where: { id },
     include: { fields: { orderBy: { order: "asc" } } },
@@ -15,6 +19,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
   const copy = await prisma.form.create({
     data: {
+      userId: auth.user.id,
       title: `${source.title} (copy)`,
       description: source.description,
       status: "draft",

@@ -1,7 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { toFormWithFields } from "@/lib/forms";
+import { getCurrentUser } from "@/lib/auth";
 import { TopBar } from "@/components/TopBar";
 import { ResponsesTable, type SubmissionRow } from "@/components/responses/ResponsesTable";
 
@@ -13,11 +14,14 @@ export default async function ResponsesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const form = await prisma.form.findUnique({
     where: { id },
     include: { fields: { orderBy: { order: "asc" } } },
   });
-  if (!form) notFound();
+  if (!form || form.userId !== user.id) notFound();
 
   const submissions = await prisma.submission.findMany({
     where: { formId: id },
@@ -39,6 +43,7 @@ export default async function ResponsesPage({
   return (
     <>
       <TopBar
+        userEmail={user.email}
         right={
           <nav className="flex items-center gap-1 text-sm">
             <Link href={`/forms/${form.id}/edit`} className="rounded-full px-3 py-1.5 font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800">

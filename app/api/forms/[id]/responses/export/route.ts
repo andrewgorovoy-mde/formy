@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toFormWithFields } from "@/lib/forms";
 import { buildResponsesCsv, exportFilename } from "@/lib/csv";
+import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
 // Streams the form's responses as a CSV download (opens directly in Excel / Google Sheets).
-export async function GET(_request: NextRequest, { params }: Params) {
+// Private data — owner only.
+export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const auth = await authorizeFormOwner(request, id);
+  if ("error" in auth) return auth.error;
+
   const form = await prisma.form.findUnique({
     where: { id },
     include: { fields: { orderBy: { order: "asc" } } },
