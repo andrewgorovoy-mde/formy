@@ -7,12 +7,13 @@ import { getServerAppUrl } from "@/lib/serverAppUrl";
 import { embedJson } from "@/lib/embedJson";
 import { PublicFormClient } from "@/components/PublicFormClient";
 
-async function loadPublishedForm(id: string) {
+async function loadPublishedForm(id: string, allowDraft = false) {
   const form = await prisma.form.findUnique({
     where: { id },
     include: { fields: { orderBy: { order: "asc" } } },
   });
-  if (!form || form.status !== "published") return null;
+  if (!form) return null;
+  if (form.status !== "published" && !allowDraft) return null;
   return form;
 }
 
@@ -35,11 +36,15 @@ export async function generateMetadata({
 
 export default async function PublicFormPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { id } = await params;
-  const form = await loadPublishedForm(id);
+  const { preview } = await searchParams;
+  const isPreview = preview === "1";
+  const form = await loadPublishedForm(id, isPreview);
   if (!form) notFound();
 
   const appUrl = await getServerAppUrl();
@@ -54,7 +59,7 @@ export default async function PublicFormPage({
         type="application/agentic-form+json"
         dangerouslySetInnerHTML={{ __html: embedJson(schema) }}
       />
-      <PublicFormClient form={formDef} schemaUrl={schemaUrl} />
+      <PublicFormClient form={formDef} schemaUrl={schemaUrl} preview={isPreview} />
     </>
   );
 }

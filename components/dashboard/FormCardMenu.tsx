@@ -63,7 +63,7 @@ export function FormCardMenu({ formId, title }: { formId: string; title: string 
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-xl">
           <button
             className={item}
             onClick={(e) => {

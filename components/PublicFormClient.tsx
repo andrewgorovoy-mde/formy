@@ -1,16 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { FormWithFields } from "@/lib/types";
 
 type AnswerValue = string | number | boolean | string[] | undefined;
 
+// Slim banner shown only when the form is opened in preview mode (?preview=1) from the builder,
+// giving the creator a clear way back. Real respondents never see it.
+function PreviewBanner({ formId }: { formId: string }) {
+  return (
+    <div className="sticky top-0 z-50 flex items-center justify-center gap-3 bg-stone-900 px-4 py-2 text-center text-sm text-white">
+      <span>👁 Preview — this is how respondents see your form.</span>
+      <Link
+        href={`/forms/${formId}/edit`}
+        className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium transition hover:bg-white/25"
+      >
+        ✕ Exit preview
+      </Link>
+    </div>
+  );
+}
+
 export function PublicFormClient({
   form,
   schemaUrl,
+  preview = false,
 }: {
   form: FormWithFields;
   schemaUrl: string;
+  preview?: boolean;
 }) {
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,19 +65,20 @@ export function PublicFormClient({
 
   if (submitted) {
     return (
-      <div
-        className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center"
-        style={{ "--accent": form.accentColor } as React.CSSProperties}
-      >
-        <div className="accent-text mb-4 text-5xl">✓</div>
-        <h1 className="text-2xl font-bold text-stone-900">Thanks — you&rsquo;re all set.</h1>
-        <p className="mt-2 text-stone-500">Your response to &ldquo;{form.title}&rdquo; was received.</p>
+      <div style={{ "--accent": form.accentColor } as React.CSSProperties}>
+        {preview && <PreviewBanner formId={form.id} />}
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
+          <div className="accent-text mb-4 text-5xl">✓</div>
+          <h1 className="text-2xl font-bold text-stone-900">Thanks — you&rsquo;re all set.</h1>
+          <p className="mt-2 text-stone-500">Your response to &ldquo;{form.title}&rdquo; was received.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div style={{ "--accent": form.accentColor } as React.CSSProperties}>
+      {preview && <PreviewBanner formId={form.id} />}
       <AgentBar schemaUrl={schemaUrl} />
       <div
         className="h-[120px] w-full"

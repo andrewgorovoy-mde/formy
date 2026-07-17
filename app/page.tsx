@@ -17,7 +17,19 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <TopBar right={<NewFormButton />} />
+      <TopBar
+        right={
+          <div className="flex items-center gap-2">
+            <Link
+              href="/discover"
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+            >
+              Discover
+            </Link>
+            <NewFormButton />
+          </div>
+        }
+      />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <div className="mb-6 flex items-end justify-between">
           <div>
@@ -40,9 +52,12 @@ export default async function DashboardPage() {
             {forms.map((form) => (
               <li
                 key={form.id}
-                className="group relative overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-md"
+                className="group relative rounded-2xl border border-stone-200 bg-white transition hover:border-stone-300 hover:shadow-md"
               >
-                <div className="h-1.5 w-full" style={{ backgroundColor: form.accentColor }} />
+                <div
+                  className="h-1.5 w-full rounded-t-2xl"
+                  style={{ backgroundColor: form.accentColor }}
+                />
                 {/* Menu sits above the card Link (sibling, absolutely positioned) so its clicks
                     don't trigger navigation and we avoid nesting interactive elements. */}
                 <div className="absolute right-3 top-4 z-10">

@@ -203,8 +203,7 @@ export function BuilderClient({ form }: { form: FormWithFields }) {
               Responses
             </Link>
             <Link
-              href={`/f/${form.id}`}
-              target="_blank"
+              href={`/f/${form.id}?preview=1`}
               className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800 sm:inline"
             >
               Preview
