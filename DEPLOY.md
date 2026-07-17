@@ -16,13 +16,16 @@ are the parts that need your Railway account.
 
 2. **Add a persistent volume** (this is the critical step — without it the DB resets on every deploy)
    - In the service → **Settings → Volumes → New Volume**.
-   - Mount path: **`/data`**
+   - Any mount path works (e.g. **`/data`**). The app auto-detects the volume's location via
+     Railway's `RAILWAY_VOLUME_MOUNT_PATH` and stores the database as `prod.db` inside it — no
+     env var required.
 
-3. **Set environment variables** (service → **Variables**)
-   - `DATABASE_URL` = `file:/data/prod.db`
-   - *(optional)* `APP_URL` = your Railway public URL (e.g. `https://formy-production.up.railway.app`).
-     Only needed if you want absolute URLs in the agentic schema / registry to be hard-pinned;
-     otherwise the app derives them from the incoming request, which is correct on Railway.
+3. **Environment variables** (service → **Variables**) — all optional
+   - `DATABASE_URL` — only set this to *override* the auto-detected volume path (e.g.
+     `file:/data/prod.db`). Leave it unset and the app derives it from the volume mount.
+   - `APP_URL` = your Railway public URL — only if you want absolute URLs in the agentic
+     schema / registry hard-pinned; otherwise the app derives them from the request, which is
+     correct on Railway.
 
 4. **Deploy.** Railway will:
    - build: `npm run build` → `prisma generate && next build`
@@ -42,8 +45,10 @@ DATABASE_URL=file:/data/prod.db APP_URL=$APP_URL npm run db:seed
 
 ## How writes stay safe
 
-All form/submission writes go to `/data/prod.db` on the mounted volume, which persists across
-deploys and restarts. Redeploying ships new code but keeps the data.
+All form/submission writes go to `prod.db` inside the mounted volume (path auto-detected from
+`RAILWAY_VOLUME_MOUNT_PATH`), which persists across deploys and restarts. Both `prisma migrate
+deploy` (at start) and the running app resolve the same path via `lib/databaseUrl.ts`, so they
+always agree. Redeploying ships new code but keeps the data.
 
 ## Notes / gotchas
 

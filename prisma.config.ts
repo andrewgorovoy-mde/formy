@@ -3,12 +3,22 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// Kept in sync with lib/databaseUrl.ts (inlined here to avoid a relative import inside the
+// Prisma CLI's config loader). See that file for the resolution rationale.
+function resolveDatabaseUrl(): string {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    return `file:${process.env.RAILWAY_VOLUME_MOUNT_PATH}/prod.db`;
+  }
+  return "file:./dev.db";
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: resolveDatabaseUrl(),
   },
 });
