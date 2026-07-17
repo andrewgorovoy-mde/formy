@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { FormWithFields } from "@/lib/types";
 import { QuestionBlock, type DraftField } from "./QuestionBlock";
 import { AccentPicker } from "./AccentPicker";
+import { StatusBadge } from "@/components/StatusBadge";
 
 function toDraft(fields: FormWithFields["fields"]): DraftField[] {
   return fields.map((f) => ({
@@ -33,6 +34,9 @@ function newField(): DraftField {
   };
 }
 
+const cardClass =
+  "rounded-2xl border border-stone-200 bg-white shadow-sm transition";
+
 export function BuilderClient({ form }: { form: FormWithFields }) {
   const router = useRouter();
   const [title, setTitle] = useState(form.title);
@@ -46,6 +50,9 @@ export function BuilderClient({ form }: { form: FormWithFields }) {
   const [fetchingOg, setFetchingOg] = useState(false);
   const [fields, setFields] = useState<DraftField[]>(toDraft(form.fields));
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [settingsOpen, setSettingsOpen] = useState(
+    Boolean(form.resource.category || form.resource.resourceUrl || form.agentContext)
+  );
   const dragIndex = useRef<number | null>(null);
 
   async function fetchOgPreview() {
@@ -100,14 +107,45 @@ export function BuilderClient({ form }: { form: FormWithFields }) {
     return res.json();
   }
 
+  // Debounced autosave: 1.2s after the last edit, like Google Forms. Skips the initial mount.
+  const snapshot = JSON.stringify({
+    title, description, accentColor, agentContext, category, tags, resourceUrl, og, fields,
+  });
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    setStatus("saving");
+    const t = setTimeout(() => {
+      void save();
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot]);
+
   function updateField(index: number, next: DraftField) {
     setFields((prev) => prev.map((f, i) => (i === index ? next : f)));
   }
-
   function deleteField(index: number) {
     setFields((prev) => prev.filter((_, i) => i !== index));
   }
-
+  function duplicateField(index: number) {
+    setFields((prev) => {
+      const copy: DraftField = {
+        ...prev[index],
+        clientId: `tmp_${Math.random().toString(36).slice(2)}`,
+        id: undefined,
+        key: undefined,
+        options: [...prev[index].options],
+        constraints: { ...prev[index].constraints },
+      };
+      const next = prev.slice();
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
+  }
   function moveField(index: number, direction: -1 | 1) {
     setFields((prev) => {
       const next = prev.slice();
@@ -117,7 +155,6 @@ export function BuilderClient({ form }: { form: FormWithFields }) {
       return next;
     });
   }
-
   function reorder(from: number, to: number) {
     setFields((prev) => {
       if (from === to) return prev;
@@ -127,200 +164,225 @@ export function BuilderClient({ form }: { form: FormWithFields }) {
       return next;
     });
   }
+  function addField() {
+    setFields((prev) => [...prev, newField()]);
+  }
 
   async function handlePublish() {
     await save({ status: "published" });
     router.push(`/forms/${form.id}/publish`);
   }
 
+  const savedLabel =
+    status === "saving" ? "Saving…" : status === "saved" ? "All changes saved" : "";
+
   return (
-    <main
-      className="mx-auto w-full max-w-2xl flex-1 px-6 py-16"
-      style={{ "--accent": accentColor } as React.CSSProperties}
-    >
-      <div
-        className="mb-10 flex items-center justify-between border-b border-stone-100 pb-6 text-sm text-stone-500"
-      >
-        <div className="flex items-center gap-5">
-          <Link href="/" className="font-medium text-stone-500 hover:text-stone-800">
-            ← All forms
-          </Link>
-          <AccentPicker value={accentColor} onChange={setAccentColor} />
-          <Link href={`/forms/${form.id}/responses`} className="hover:text-stone-700">
-            Responses
-          </Link>
-        </div>
-        <div className="flex items-center gap-4">
-          <span>{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}</span>
-          <button
-            type="button"
-            onClick={() => save()}
-            className="rounded-full border border-stone-200 px-4 py-1.5 font-medium text-stone-700 transition hover:bg-stone-50"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={handlePublish}
-            className="accent-bg rounded-full px-4 py-1.5 font-medium text-white transition hover:opacity-90"
-          >
-            Publish
-          </button>
-        </div>
-      </div>
-
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Form title"
-        className="w-full border-none bg-transparent text-3xl font-bold tracking-tight text-stone-900 placeholder-stone-300 focus:outline-none"
-      />
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="Add a description…"
-        rows={2}
-        className="mt-2 w-full resize-none border-none bg-transparent text-base text-stone-500 placeholder-stone-300 focus:outline-none"
-      />
-
-      <div className="mt-8 rounded-xl border border-dashed border-stone-200 bg-white/50 p-4">
-        <div className="flex items-center gap-2">
-          <span className="accent-text text-sm">✦</span>
-          <h2 className="text-sm font-medium text-stone-700">Agent context</h2>
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400">
-            Optional
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-stone-400">
-          Form-wide guidance agents apply to every answer — tone, approach, and what you value.
-          Humans never see this.
-        </p>
-        <textarea
-          value={agentContext}
-          onChange={(e) => setAgentContext(e.target.value)}
-          placeholder="e.g. Write in a warm, first-person voice. We value concrete lived experience over polish, and honesty over buzzwords. When unsure, keep answers concise rather than padding."
-          rows={3}
-          className="mt-2 w-full resize-none rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600 placeholder-stone-300 focus:outline-none accent-ring"
-        />
-      </div>
-
-      <div className="mt-4 rounded-xl border border-dashed border-stone-200 bg-white/50 p-4">
-        <div className="flex items-center gap-2">
-          <span className="accent-text text-sm">🔗</span>
-          <h2 className="text-sm font-medium text-stone-700">Resource &amp; discovery</h2>
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-400">
-            Makes this form findable
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-stone-400">
-          Classify this resource and link its source site. Agents use this to find the right form
-          for a student&rsquo;s need.
-        </p>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
-              Category
-            </span>
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Academic Support"
-              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
-              Tags <span className="normal-case text-stone-300">(comma-separated)</span>
-            </span>
-            <input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="tutoring, math, drop-in"
-              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
-            />
-          </label>
-        </div>
-
-        <div className="mt-3">
-          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
-            Resource link
-          </span>
-          <div className="flex gap-2">
-            <input
-              value={resourceUrl}
-              onChange={(e) => setResourceUrl(e.target.value)}
-              placeholder="https://college.edu/tutoring-center"
-              className="flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
-            />
+    <div style={{ "--accent": accentColor } as React.CSSProperties}>
+      {/* App bar */}
+      <header className="sticky top-0 z-30 border-b border-stone-200/70 bg-[#FAFAF9]/85 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-3 px-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+              aria-label="All forms"
+            >
+              ←
+            </Link>
+            <span className="truncate text-sm font-medium text-stone-700">{title || "Untitled form"}</span>
+            <StatusBadge status={form.status} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-xs text-stone-400 sm:inline">{savedLabel}</span>
+            <AccentPicker value={accentColor} onChange={setAccentColor} />
+            <div className="mx-1 h-5 w-px bg-stone-200" />
+            <Link
+              href={`/forms/${form.id}/responses`}
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+            >
+              Responses
+            </Link>
+            <Link
+              href={`/f/${form.id}`}
+              target="_blank"
+              className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800 sm:inline"
+            >
+              Preview
+            </Link>
             <button
               type="button"
-              onClick={fetchOgPreview}
-              disabled={fetchingOg || !resourceUrl.trim()}
-              className="rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
+              onClick={handlePublish}
+              className="accent-bg rounded-full px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
             >
-              {fetchingOg ? "Fetching…" : "Fetch info"}
+              {form.status === "published" ? "Update" : "Publish"}
             </button>
           </div>
+        </div>
+      </header>
 
-          {(og.title || og.description || og.image) && (
-            <div className="mt-3 flex gap-3 rounded-lg border border-stone-200 bg-white p-3">
-              {og.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={og.image}
-                  alt=""
-                  className="h-16 w-16 shrink-0 rounded object-cover"
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+        {/* Title card with accent header */}
+        <div className={`${cardClass} overflow-hidden`}>
+          <div className="h-2.5 w-full accent-bg" />
+          <div className="px-6 pb-6 pt-5">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled form"
+              className="w-full border-b border-transparent bg-transparent pb-1 text-2xl font-bold tracking-tight text-stone-900 placeholder-stone-300 focus:border-stone-200 focus:outline-none"
+            />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Form description"
+              rows={2}
+              className="mt-3 w-full resize-none border-b border-transparent bg-transparent pb-1 text-sm text-stone-500 placeholder-stone-300 focus:border-stone-200 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Discovery / agent settings (collapsible) */}
+        <div className={`${cardClass} mt-4`}>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-6 py-4 text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold text-stone-700">
+              <span className="accent-text">✦</span> Discovery &amp; agent settings
+            </span>
+            <span className="text-stone-400">{settingsOpen ? "▲" : "▼"}</span>
+          </button>
+          {settingsOpen && (
+            <div className="space-y-5 border-t border-stone-100 px-6 py-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
+                    Category
+                  </span>
+                  <input
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="e.g. Academic Support"
+                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
+                    Tags <span className="normal-case text-stone-300">(comma-separated)</span>
+                  </span>
+                  <input
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    placeholder="tutoring, math, drop-in"
+                    className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
+                  />
+                </label>
+              </div>
+
+              <div>
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-stone-400">
+                  Resource link
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    value={resourceUrl}
+                    onChange={(e) => setResourceUrl(e.target.value)}
+                    placeholder="https://college.edu/tutoring-center"
+                    className="flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-300 focus:outline-none accent-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={fetchOgPreview}
+                    disabled={fetchingOg || !resourceUrl.trim()}
+                    className="shrink-0 rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
+                  >
+                    {fetchingOg ? "Fetching…" : "Fetch info"}
+                  </button>
+                </div>
+                {(og.title || og.description || og.image) && (
+                  <div className="mt-3 flex gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+                    {og.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={og.image} alt="" className="h-16 w-16 shrink-0 rounded object-cover" />
+                    )}
+                    <div className="min-w-0">
+                      {og.siteName && (
+                        <p className="truncate text-[11px] uppercase tracking-wide text-stone-400">
+                          {og.siteName}
+                        </p>
+                      )}
+                      <p className="truncate text-sm font-medium text-stone-800">
+                        {og.title || resourceUrl}
+                      </p>
+                      {og.description && (
+                        <p className="line-clamp-2 text-xs text-stone-500">{og.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <span className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+                  Agent context
+                  <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] normal-case text-stone-400">
+                    hidden from humans
+                  </span>
+                </span>
+                <textarea
+                  value={agentContext}
+                  onChange={(e) => setAgentContext(e.target.value)}
+                  placeholder="e.g. Write in a warm, first-person voice. We value concrete lived experience over polish, and honesty over buzzwords."
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600 placeholder-stone-300 focus:outline-none accent-ring"
                 />
-              )}
-              <div className="min-w-0">
-                {og.siteName && (
-                  <p className="truncate text-[11px] uppercase tracking-wide text-stone-400">
-                    {og.siteName}
-                  </p>
-                )}
-                <p className="truncate text-sm font-medium text-stone-800">{og.title || resourceUrl}</p>
-                {og.description && (
-                  <p className="line-clamp-2 text-xs text-stone-500">{og.description}</p>
-                )}
               </div>
             </div>
           )}
         </div>
-      </div>
 
-      <div className="mt-10 space-y-1">
-        {fields.map((field, index) => (
-          <QuestionBlock
-            key={field.clientId}
-            field={field}
-            index={index}
-            total={fields.length}
-            onChange={(next) => updateField(index, next)}
-            onDelete={() => deleteField(index)}
-            onMove={(dir) => moveField(index, dir)}
-            dragHandlers={{
-              draggable: true,
-              onDragStart: () => {
-                dragIndex.current = index;
-              },
-              onDragOver: (e) => e.preventDefault(),
-              onDrop: () => {
-                if (dragIndex.current !== null) reorder(dragIndex.current, index);
-                dragIndex.current = null;
-              },
-            }}
-          />
-        ))}
-      </div>
+        {/* Question cards */}
+        <div className="mt-4 space-y-4">
+          {fields.map((field, index) => (
+            <QuestionBlock
+              key={field.clientId}
+              field={field}
+              index={index}
+              total={fields.length}
+              onChange={(next) => updateField(index, next)}
+              onDelete={() => deleteField(index)}
+              onDuplicate={() => duplicateField(index)}
+              onMove={(dir) => moveField(index, dir)}
+              dragHandlers={{
+                draggable: true,
+                onDragStart: () => {
+                  dragIndex.current = index;
+                },
+                onDragOver: (e) => e.preventDefault(),
+                onDrop: () => {
+                  if (dragIndex.current !== null) reorder(dragIndex.current, index);
+                  dragIndex.current = null;
+                },
+              }}
+            />
+          ))}
+        </div>
 
-      <button
-        type="button"
-        onClick={() => setFields((prev) => [...prev, newField()])}
-        className="accent-text mt-6 text-sm font-medium hover:opacity-80"
-      >
-        + Add question
-      </button>
-    </main>
+        {fields.length === 0 && (
+          <div className={`${cardClass} mt-4 border-dashed py-12 text-center text-sm text-stone-400`}>
+            No questions yet.
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={addField}
+          className={`${cardClass} mt-4 flex w-full items-center justify-center gap-2 py-4 text-sm font-semibold text-stone-600 hover:border-stone-300 hover:text-stone-900`}
+        >
+          <span className="accent-text text-lg leading-none">＋</span> Add question
+        </button>
+      </main>
+    </div>
   );
 }

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { toFormWithFields } from "@/lib/forms";
 import { BuilderClient } from "@/components/builder/BuilderClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function EditFormPage({
   params,
 }: {

@@ -6,6 +6,9 @@ import { buildAgenticSchema } from "@/lib/agenticSchema";
 import { getServerAppUrl } from "@/lib/serverAppUrl";
 import { CopyField } from "@/components/CopyField";
 import { UnpublishButton } from "@/components/builder/UnpublishButton";
+import { TopBar } from "@/components/TopBar";
+
+export const dynamic = "force-dynamic";
 
 export default async function PublishPage({
   params,
@@ -36,27 +39,34 @@ export default async function PublishPage({
       : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
-      <Link
-        href="/"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-stone-800"
-      >
-        <span aria-hidden>←</span> All forms
-      </Link>
+    <>
+      <TopBar
+        right={
+          <nav className="flex items-center gap-1 text-sm">
+            <Link href={`/forms/${form.id}/edit`} className="rounded-full px-3 py-1.5 font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800">
+              Edit
+            </Link>
+            <span className="rounded-full bg-violet-100 px-3 py-1.5 font-medium text-violet-700">Share</span>
+            <Link href={`/forms/${form.id}/responses`} className="rounded-full px-3 py-1.5 font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800">
+              Responses
+            </Link>
+          </nav>
+        }
+      />
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
       <div className="mb-10 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{form.title}</h1>
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${form.status === "published" ? "bg-emerald-500" : "bg-stone-300"}`}
+            />
+            <h1 className="text-2xl font-bold tracking-tight">{form.title}</h1>
+          </div>
           <p className="mt-1 text-sm text-stone-500">
-            {form.status === "published" ? "Live" : "Not published"}
+            {form.status === "published" ? "Live — anyone with the link can respond" : "Not published yet"}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href={`/forms/${form.id}/edit`}
-            className="rounded-full border border-stone-200 px-4 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-50"
-          >
-            Edit
-          </Link>
           {form.status === "published" && <UnpublishButton formId={form.id} />}
         </div>
       </div>
@@ -93,6 +103,7 @@ export default async function PublishPage({
           </section>
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }
