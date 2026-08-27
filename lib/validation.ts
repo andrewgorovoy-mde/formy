@@ -7,7 +7,8 @@ export type ValidationResult = {
   normalized: Record<string, unknown>;
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Deliberately permissive (no full RFC 5322 check) — good enough to catch typos without rejecting valid addresses. */
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isEmpty(value: unknown): boolean {

@@ -3,6 +3,8 @@
 
 const { TOOLS, runTool } = require("./tools");
 
+// The MCP protocol version this server claims in `initialize` — bump only after checking that
+// method/shape changes in a newer spec revision don't require handling here too.
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "formy", version: "0.1.0" };
 

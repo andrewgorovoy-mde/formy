@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toFormWithFields } from "@/lib/forms";
 import { searchForms } from "@/lib/search";
-import { getAppUrl, CORS_HEADERS } from "@/lib/appUrl";
+import { getAppUrl, CORS_HEADERS, corsPreflight } from "@/lib/appUrl";
 
 // Structured relevance search across the registry of published forms. This is the "Consensus for
 // campus resources" query surface: an agent (or the MCP server) sends a query and gets back
@@ -43,6 +43,4 @@ export async function GET(request: NextRequest) {
   );
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+export const OPTIONS = corsPreflight;

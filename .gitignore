@@ -52,3 +52,8 @@ next-env.d.ts
 # generated registry (materialized from the DB via `npm run registry:build`)
 /registry/
 
+# local packaging/marketing assets — not part of the source tree
+*.tgz
+*.tar.gz
+/launch/
+

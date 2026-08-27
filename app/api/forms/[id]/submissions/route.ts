@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { toFormWithFields } from "@/lib/forms";
+import { getFormWithFields, toFormWithFields } from "@/lib/forms";
 import { validateAnswers } from "@/lib/validation";
-import { CORS_HEADERS } from "@/lib/appUrl";
+import { CORS_HEADERS, corsPreflight } from "@/lib/appUrl";
 import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
@@ -30,12 +30,13 @@ export async function GET(request: NextRequest, { params }: Params) {
   );
 }
 
+// Public, CORS-open — this is the submit endpoint both the public form page and any agent
+// (including the MCP server's `submit_form` tool) post to. Validates against the form's field
+// definitions; a validation failure returns 422 with per-field messages rather than a generic
+// error, so a caller (human or agent) can correct and retry.
 export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const form = await prisma.form.findUnique({
-    where: { id },
-    include: { fields: { orderBy: { order: "asc" } } },
-  });
+  const form = await getFormWithFields(id);
 
   if (!form || form.status !== "published") {
     return NextResponse.json(
@@ -79,6 +80,4 @@ export async function POST(request: NextRequest, { params }: Params) {
   );
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+export const OPTIONS = corsPreflight;

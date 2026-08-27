@@ -12,6 +12,10 @@ import {
 } from "@/lib/fieldTypes";
 import type { Constraints } from "@/lib/types";
 
+// One editable field row in the builder: type/label/guidance/required + type-specific controls
+// (options for select types, length/range constraints for text/number). `DraftField` mirrors
+// `FieldDef` (lib/types.ts) but `id`/`key` are optional since a newly added field has neither
+// until it's saved — see `newField()` in BuilderClient.tsx.
 export type DraftField = {
   clientId: string;
   id?: string;

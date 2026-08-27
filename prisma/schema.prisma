@@ -25,7 +25,7 @@ model Form {
   title        String
   description  String   @default("")
   status       String   @default("draft") // "draft" | "published"
-  accentColor  String   @default("#8B5CF6") // presentational only; not in agent schema
+  accentColor  String   @default("#8B5CF6") // presentational only; not in agent schema. Keep in sync with DEFAULT_ACCENT in lib/colors.ts (Prisma schema can't import TS).
   agentContext String   @default("") // form-level guidance for agents (tone, approach, style)
   // Resource/registry metadata — makes each form an indexable, searchable resource record.
   category     String   @default("") // e.g. "Academic Support", "Mental Health", "Financial Aid"

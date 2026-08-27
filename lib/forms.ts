@@ -16,6 +16,14 @@ type FieldRow = {
   constraints: string;
 };
 
+/** Fetches a form with its fields in display order, or `null` if `id` doesn't exist. */
+export async function getFormWithFields(id: string) {
+  return prisma.form.findUnique({
+    where: { id },
+    include: { fields: { orderBy: { order: "asc" } } },
+  });
+}
+
 export function toFieldDef(row: FieldRow): FieldDef {
   return {
     id: row.id,

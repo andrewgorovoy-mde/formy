@@ -40,8 +40,8 @@ const scholarshipSchema = {
 describe("deterministicAnswers", () => {
   it("maps the full scholarship form from profile.json with no LLM call", () => {
     const answers = deterministicAnswers(scholarshipSchema, profile);
-    expect(answers.full_name).toBe("Drew Gorovoy");
-    expect(answers.email).toBe("agorovoy24@gmail.com");
+    expect(answers.full_name).toBe("Jane Okafor");
+    expect(answers.email).toBe("jane.okafor@example.com");
     expect(answers.gpa).toBe(3.8);
     expect(answers.grad_year).toBe("2027");
     expect(answers.areas).toEqual(["Climate", "Policy"]);

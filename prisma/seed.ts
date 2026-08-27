@@ -220,7 +220,7 @@ const CAMPUS_RESOURCES = [
     tags: ["career", "resume", "cover letter", "interview", "internship", "jobs", "advising"],
     resourceUrl: "https://example.edu/career-services",
     ogSiteName: "example.edu",
-    accentColor: "#8B5CF6",
+    accentColor: "#8B5CF6", // matches DEFAULT_ACCENT in lib/colors.ts
     field: { key: "goal", label: "What role or industry are you targeting?", type: "short_text" },
   },
 ];

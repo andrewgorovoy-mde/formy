@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchOg, fallbackOg } from "@/lib/og";
-import { CORS_HEADERS } from "@/lib/appUrl";
+import { CORS_HEADERS, corsPreflight } from "@/lib/appUrl";
 
 // Fetches Open Graph metadata for a URL so the builder can preview a resource link and store a
 // rich, indexable record. Used by the "fetch info" button in the builder.
@@ -27,6 +27,4 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(og, { headers: CORS_HEADERS });
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+export const OPTIONS = corsPreflight;

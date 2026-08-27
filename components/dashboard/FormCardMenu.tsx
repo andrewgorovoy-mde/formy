@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useClickOutside } from "@/components/hooks/useClickOutside";
 
 export function FormCardMenu({ formId, title }: { formId: string; title: string }) {
   const router = useRouter();
@@ -9,13 +10,7 @@ export function FormCardMenu({ formId, title }: { formId: string; title: string 
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
+  useClickOutside(ref, () => setOpen(false));
 
   async function duplicate() {
     setBusy(true);

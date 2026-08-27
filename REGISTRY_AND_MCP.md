@@ -27,26 +27,10 @@ All of this is exposed to agents in the form's schema (`form.category`, `form.ta
 2. **`/.well-known/agentic-forms.json`** — the whole published registry in one document, with a
    `search` URL and per-form metadata. An agent landing on the origin can enumerate everything.
 
-3. **MCP server** (`mcp/server.js`) — the primary agent interface. Zero-dependency stdio
-   JSON-RPC. Tools:
-   - `search_forms({ query, category?, tags?, limit? })`
-   - `get_form({ form_id })` → full agentic schema
-   - `submit_form({ form_id, answers, agent_name?, on_behalf_of? })`
-
-   Run it: `FORMY_URL=http://localhost:3000 node mcp/server.js`
-
-   Claude Desktop (`claude_desktop_config.json`):
-   ```json
-   {
-     "mcpServers": {
-       "formy": {
-         "command": "node",
-         "args": ["/abs/path/to/formy/mcp/server.js"],
-         "env": { "FORMY_URL": "http://localhost:3000" }
-       }
-     }
-   }
-   ```
+3. **MCP server** (`mcp/server.js`) — the primary agent interface: `search_forms`, `get_form`,
+   `submit_form` over stdio JSON-RPC. See the README's **[MCP Server](README.md#mcp-server)**
+   section for the full setup, deployment, and security-posture guide — kept there rather than
+   duplicated here so the two don't drift.
 
 ## The registry as a repo of files
 

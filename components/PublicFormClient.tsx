@@ -4,6 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import type { FormWithFields } from "@/lib/types";
 
+// The human-facing rendering of a published form (POSTs to the same /api/forms/{id}/submissions
+// endpoint an agent would use — see submissions/route.ts). Field markup carries the discovery
+// hooks described in AGENT_FRIENDLINESS.md (name/id = field key, required, autocomplete) so an
+// agent reading the DOM directly, without the JSON schema, can still fill it in correctly.
 type AnswerValue = string | number | boolean | string[] | undefined;
 
 // Slim banner shown only when the form is opened in preview mode (?preview=1) from the builder,

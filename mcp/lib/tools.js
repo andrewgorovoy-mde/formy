@@ -50,6 +50,11 @@ const TOOLS = [
   },
 ];
 
+// Sends no auth header and no request timeout: the Formy routes this proxies to are
+// intentionally public/CORS-open (see README's "MCP Server" section), so no credential is
+// needed today, but that also means a hung or unreachable `apiBase` will hang the calling
+// tools/call indefinitely — there's no AbortController here. A non-JSON response body (e.g. an
+// HTML error page from a misconfigured proxy) is returned as `{ raw: text }` rather than thrown.
 async function callApi(apiBase, path, init, fetchImpl) {
   const doFetch = fetchImpl || fetch;
   const res = await doFetch(`${apiBase}${path}`, init);

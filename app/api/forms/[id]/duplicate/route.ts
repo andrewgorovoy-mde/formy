@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getFormWithFields } from "@/lib/forms";
 import { authorizeFormOwner } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
@@ -11,10 +12,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const auth = await authorizeFormOwner(request, id);
   if ("error" in auth) return auth.error;
 
-  const source = await prisma.form.findUnique({
-    where: { id },
-    include: { fields: { orderBy: { order: "asc" } } },
-  });
+  const source = await getFormWithFields(id);
   if (!source) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const copy = await prisma.form.create({

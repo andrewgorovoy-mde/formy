@@ -3,8 +3,6 @@ import type { FormWithFields } from "@/lib/types";
 // Structured relevance search over the registry of forms. Consensus-style: a query yields
 // ranked, structured results with a score and the terms that matched — not opaque ordering.
 
-export type SearchableForm = FormWithFields;
-
 export type SearchResult = {
   id: string;
   title: string;
@@ -63,7 +61,7 @@ function termHits(haystack: string, term: string): number {
 }
 
 /** Score one form against the query terms, returning score + which terms matched anywhere. */
-export function scoreForm(form: SearchableForm, terms: string[]): { score: number; matched: string[] } {
+export function scoreForm(form: FormWithFields, terms: string[]): { score: number; matched: string[] } {
   const zones: Array<[string, number]> = [
     [form.title, WEIGHTS.title],
     [form.resource.tags.join(" "), WEIGHTS.tags],
@@ -89,7 +87,7 @@ export function scoreForm(form: SearchableForm, terms: string[]): { score: numbe
   return { score, matched: [...matched] };
 }
 
-export function searchForms(forms: SearchableForm[], query: SearchQuery): SearchResult[] {
+export function searchForms(forms: FormWithFields[], query: SearchQuery): SearchResult[] {
   const rawTerms = tokenize(query.q ?? "");
   const terms = rawTerms.filter((t) => !STOP.has(t));
   const wantTags = (query.tags ?? []).map((t) => t.toLowerCase());

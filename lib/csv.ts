@@ -1,5 +1,10 @@
 import type { FieldDef } from "@/lib/types";
 
+// Without this, Excel (which sniffs encoding rather than assuming UTF-8) renders accented
+// characters as mojibake. Named + escaped rather than a bare literal since the character itself
+// is invisible in a diff/editor and easy to accidentally strip.
+const UTF8_BOM = "\uFEFF";
+
 export type ExportSubmission = {
   answers: Record<string, unknown>;
   source: string;
@@ -40,7 +45,7 @@ export function buildResponsesCsv(fields: FieldDef[], submissions: ExportSubmiss
     ])
   );
   // Prepend a UTF-8 BOM so Excel reads accented characters correctly.
-  return "﻿" + [csvRow(header), ...rows].join("\r\n") + "\r\n";
+  return UTF8_BOM + [csvRow(header), ...rows].join("\r\n") + "\r\n";
 }
 
 /** Safe filename slug from a form title. */

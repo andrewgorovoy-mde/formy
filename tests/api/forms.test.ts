@@ -177,7 +177,7 @@ describe("forms + submissions API", () => {
           "POST",
           {
             answers: {
-              full_legal_name: "Drew Gorovoy",
+              full_legal_name: "Jane Okafor",
               contact_email: "not-an-email",
               current_gpa: 3.8,
               expected_graduation_year: "2027",
@@ -202,8 +202,8 @@ describe("forms + submissions API", () => {
           "POST",
           {
             answers: {
-              full_legal_name: "Drew Gorovoy",
-              contact_email: "agorovoy24@gmail.com",
+              full_legal_name: "Jane Okafor",
+              contact_email: "jane.okafor@example.com",
               current_gpa: 3.8,
               expected_graduation_year: "2027",
               why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
@@ -226,13 +226,13 @@ describe("forms + submissions API", () => {
           "POST",
           {
             answers: {
-              full_legal_name: "Drew Gorovoy",
-              contact_email: "agorovoy24@gmail.com",
+              full_legal_name: "Jane Okafor",
+              contact_email: "jane.okafor@example.com",
               current_gpa: 3.8,
               expected_graduation_year: "2027",
               why_do_you_deserve_this_scholarship: "This is a sufficiently long essay response.",
             },
-            agent: { name: "scholarship-scout/0.1", on_behalf_of: "agorovoy24@gmail.com" },
+            agent: { name: "scholarship-scout/0.1", on_behalf_of: "jane.okafor@example.com" },
           },
           ""
         ),

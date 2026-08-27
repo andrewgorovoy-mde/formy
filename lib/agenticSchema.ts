@@ -1,5 +1,12 @@
 import type { FormWithFields } from "@/lib/types";
 
+/**
+ * Builds the machine-readable `agentic-form/v1` schema for a published form: the shape an agent
+ * fetches from `/api/forms/{id}/schema` and (per the MCP server's `get_form` tool) uses to decide
+ * how to answer and where to submit. Optional/empty fields (agent context, resource metadata,
+ * per-field guidance/constraints) are omitted rather than sent as empty strings, so a consuming
+ * agent doesn't have to distinguish "empty" from "not provided."
+ */
 export function buildAgenticSchema(form: FormWithFields, appUrl: string) {
   return {
     protocol: "agentic-form/v1",

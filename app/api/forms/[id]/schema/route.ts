@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { toFormWithFields } from "@/lib/forms";
+import { getFormWithFields, toFormWithFields } from "@/lib/forms";
 import { buildAgenticSchema } from "@/lib/agenticSchema";
-import { getAppUrl, CORS_HEADERS } from "@/lib/appUrl";
+import { getAppUrl, CORS_HEADERS, corsPreflight } from "@/lib/appUrl";
 
 type Params = { params: Promise<{ id: string }> };
 
+// Public, CORS-open. The machine-readable form an agent (or the MCP server's `get_form` tool)
+// fetches to learn what to answer and where to submit. 404s on drafts — only published forms
+// are exposed.
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const form = await prisma.form.findUnique({
-    where: { id },
-    include: { fields: { orderBy: { order: "asc" } } },
-  });
+  const form = await getFormWithFields(id);
 
   if (!form || form.status !== "published") {
     return NextResponse.json({ error: "not_found" }, { status: 404, headers: CORS_HEADERS });
@@ -21,6 +20,4 @@ export async function GET(request: NextRequest, { params }: Params) {
   return NextResponse.json(schema, { headers: CORS_HEADERS });
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+export const OPTIONS = corsPreflight;

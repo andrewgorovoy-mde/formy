@@ -1,5 +1,10 @@
 import type { FieldType } from "@/lib/fieldTypes";
 
+// Shared shapes for a form and its fields once loaded from the DB, plus the JSON (de)serializers
+// for the columns that store arrays/objects as raw strings (SQLite has no native array/JSON
+// column type here). `FormWithFields` is what `lib/forms.ts`'s `toFormWithFields` produces and
+// what `buildAgenticSchema`/`searchForms` both consume.
+
 export type Constraints = {
   min?: number;
   max?: number;

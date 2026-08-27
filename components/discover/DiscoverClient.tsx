@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DEFAULT_ACCENT } from "@/lib/colors";
 
 type Result = {
   id: string;
@@ -15,14 +16,17 @@ type Result = {
   page: string;
 };
 
+// Per-category accent for the Discover grid — a display-only palette, unrelated to a form's own
+// `accentColor` field. Falls back to the app's default accent (lib/colors.ts) for any category
+// not listed here.
 const ACCENTS: Record<string, string> = {
   "Academic Support": "#0EA5E9",
   "Mental Health": "#EC4899",
   "Financial Aid": "#F59E0B",
-  "Career Services": "#8B5CF6",
+  "Career Services": DEFAULT_ACCENT,
 };
 function accentFor(category: string) {
-  return ACCENTS[category] ?? "#8B5CF6";
+  return ACCENTS[category] ?? DEFAULT_ACCENT;
 }
 
 export function DiscoverClient() {
@@ -33,13 +37,23 @@ export function DiscoverClient() {
   const [loading, setLoading] = useState(true);
   const seededCategories = useRef(false);
 
+  // Flips the spinner on immediately (in the event handler, not the effect below) so it shows
+  // right away rather than only once the debounce timer fires.
+  function updateQuery(next: string) {
+    setQuery(next);
+    setLoading(true);
+  }
+  function updateCategory(next: string | null) {
+    setCategory(next);
+    setLoading(true);
+  }
+
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (category) params.set("category", category);
 
-    setLoading(true);
     const t = setTimeout(() => {
       fetch(`/api/forms/search?${params.toString()}`, { signal: controller.signal })
         .then((r) => r.json())
@@ -82,7 +96,7 @@ export function DiscoverClient() {
           <input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => updateQuery(e.target.value)}
             placeholder="e.g. free math tutoring, someone to talk to, emergency grant…"
             className="w-full rounded-full border border-stone-200 bg-white py-3.5 pl-11 pr-4 text-stone-900 shadow-sm placeholder-stone-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
           />
@@ -91,7 +105,7 @@ export function DiscoverClient() {
         {categories.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <button
-              onClick={() => setCategory(null)}
+              onClick={() => updateCategory(null)}
               className={`rounded-full px-3 py-1 text-sm font-medium transition ${
                 category === null ? "bg-stone-900 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
               }`}
@@ -101,7 +115,7 @@ export function DiscoverClient() {
             {categories.map((c) => (
               <button
                 key={c}
-                onClick={() => setCategory(category === c ? null : c)}
+                onClick={() => updateCategory(category === c ? null : c)}
                 className={`rounded-full px-3 py-1 text-sm font-medium transition ${
                   category === c ? "text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
                 }`}

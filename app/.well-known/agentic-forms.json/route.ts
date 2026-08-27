@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAppUrl, CORS_HEADERS } from "@/lib/appUrl";
+import { getAppUrl, CORS_HEADERS, corsPreflight } from "@/lib/appUrl";
 
 // Domain-level discovery index (per the Agentic Form Protocol). An agent that lands anywhere on
 // this origin can fetch /.well-known/agentic-forms.json to enumerate every published form and
@@ -42,6 +42,4 @@ export async function GET(request: NextRequest) {
   );
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
-}
+export const OPTIONS = corsPreflight;

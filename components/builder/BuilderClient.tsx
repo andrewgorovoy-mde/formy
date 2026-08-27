@@ -8,6 +8,12 @@ import { QuestionBlock, type DraftField } from "./QuestionBlock";
 import { AccentPicker } from "./AccentPicker";
 import { StatusBadge } from "@/components/StatusBadge";
 
+// The form editor: title/description/accent, agent-context, resource & discovery metadata, and
+// the field list (add/reorder/edit/delete via QuestionBlock). Fields are edited as local
+// "drafts" (see DraftField in QuestionBlock.tsx) and only reach the server on Save, via a single
+// PATCH that also replaces the field list — see the PATCH handler in
+// app/api/forms/[id]/route.ts for how new vs. existing fields are reconciled by id.
+
 function toDraft(fields: FormWithFields["fields"]): DraftField[] {
   return fields.map((f) => ({
     clientId: f.id,

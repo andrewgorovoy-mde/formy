@@ -9,8 +9,22 @@ import { prisma } from "@/lib/prisma";
 export const SESSION_COOKIE = "formy_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+let warnedMissingSecret = false;
+
+// Falls back to a well-known dev value so local/test setups work with zero config. In
+// production this is unsafe (anyone can forge a session), so we warn loudly once rather than
+// failing the whole process — an operator who missed this can still see it in their logs and
+// rotate SESSION_SECRET without a redeploy. See DEPLOY.md's "Environment variables" section.
 function secret(): string {
-  return process.env.SESSION_SECRET || "formy-dev-insecure-secret-change-in-prod";
+  const configured = process.env.SESSION_SECRET;
+  if (!configured && process.env.NODE_ENV === "production" && !warnedMissingSecret) {
+    warnedMissingSecret = true;
+    console.warn(
+      "[formy] SESSION_SECRET is not set in production — falling back to an insecure default " +
+        "that lets anyone forge a login session. Set SESSION_SECRET (see DEPLOY.md)."
+    );
+  }
+  return configured || "formy-dev-insecure-secret-change-in-prod";
 }
 
 // ---- password hashing (scrypt) ----

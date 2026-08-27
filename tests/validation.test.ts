@@ -56,8 +56,8 @@ const scholarshipFields: FieldDef[] = [
 ];
 
 const validAnswers = {
-  full_name: "Drew Gorovoy",
-  email: "agorovoy24@gmail.com",
+  full_name: "Jane Okafor",
+  email: "jane.okafor@example.com",
   gpa: 3.8,
   grad_year: "2027",
   areas: ["Climate", "Policy"],
@@ -69,7 +69,7 @@ describe("validateAnswers", () => {
     const result = validateAnswers(scholarshipFields, validAnswers);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual({});
-    expect(result.normalized.full_name).toBe("Drew Gorovoy");
+    expect(result.normalized.full_name).toBe("Jane Okafor");
     expect(result.normalized.gpa).toBe(3.8);
   });
 

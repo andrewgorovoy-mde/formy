@@ -1,3 +1,7 @@
+// Field `key`s are generated once from the label and never regenerated on edit — they're the
+// stable contract agent submissions rely on (an agent's `answers` object is keyed by them), so
+// relabeling a field must not change its key.
+
 export function slugify(label: string): string {
   const base = label
     .trim()

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ACCENT_PRESETS } from "@/lib/colors";
+import { useClickOutside } from "@/components/hooks/useClickOutside";
 
 export function AccentPicker({
   value,
@@ -13,13 +14,7 @@ export function AccentPicker({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
+  useClickOutside(ref, () => setOpen(false));
 
   return (
     <div className="relative" ref={ref}>
